@@ -27,6 +27,7 @@ import com.tongji.auth.verification.VerificationCheckResult;
 import com.tongji.auth.verification.VerificationCodeStatus;
 import com.tongji.auth.verification.VerificationScene;
 import com.tongji.auth.verification.VerificationService;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -57,6 +58,9 @@ import org.springframework.security.oauth2.jwt.JwtException;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int MAX_PASSWORD_FAILURES = 5;
+    private static final Duration LOGIN_LOCK_TTL = Duration.ofMinutes(15);
+
     private final UserService userService;
     private final VerificationService verificationService;
     private final PasswordEncoder passwordEncoder;
@@ -64,6 +68,7 @@ public class AuthService {
     private final RefreshTokenStore refreshTokenStore;
     private final LoginLogService loginLogService;
     private final AuthProperties authProperties;
+    private final StringRedisTemplate redis;
 
     /**
      * 发送验证码并返回过期信息。
@@ -152,10 +157,18 @@ public class AuthService {
         String channel;
         if (StringUtils.hasText(request.password())) {
             channel = "PASSWORD";
+            String failKey = "auth:fail:" + user.getId();
+            String failCount = redis.opsForValue().get(failKey);
+            if (failCount != null && Integer.parseInt(failCount) >= MAX_PASSWORD_FAILURES) {
+                throw new BusinessException(ErrorCode.LOGIN_LOCKED);
+            }
             if (!StringUtils.hasText(user.getPasswordHash()) || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                redis.opsForValue().increment(failKey);
+                redis.expire(failKey, LOGIN_LOCK_TTL);
                 loginLogService.record(user.getId(), identifier, channel, clientInfo.ip(), clientInfo.userAgent(), "FAILED");
                 throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
             }
+            redis.delete(failKey);
         } else if (StringUtils.hasText(request.code())) {
             channel = "CODE";
             ensureVerificationSuccess(verificationService.verify(VerificationScene.LOGIN, identifier, request.code()));
