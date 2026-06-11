@@ -35,6 +35,9 @@ build/
 现在页面/
 原型设计图/
 
+# Interview prep materials (private, never push)
+面试/
+
 # Legacy frontend (replaced by yixiang-web/)
 yixiang_fe/
 
