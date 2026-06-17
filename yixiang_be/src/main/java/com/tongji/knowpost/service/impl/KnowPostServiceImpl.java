@@ -385,10 +385,11 @@ public class KnowPostServiceImpl implements KnowPostService {
             List<String> tags = parseStringArray(row.getTags());
             
             // 此处查询的计数仅作为缓存的基础值，后续 enrich 会刷新
-            Map<String, Long> counts = counterService.getCounts("knowpost", String.valueOf(row.getId()), List.of("like", "fav", "comment"));
+            Map<String, Long> counts = counterService.getCounts("knowpost", String.valueOf(row.getId()), List.of("like", "fav", "comment", "view"));
             Long likeCount = counts.getOrDefault("like", 0L);
             Long favoriteCount = counts.getOrDefault("fav", 0L);
             Long commentCount = counts.getOrDefault("comment", 0L);
+            Long viewCount = counts.getOrDefault("view", 0L);
 
             List<UserBrief> recentLikers = recentLikersService.top5(row.getId());
             String likerSummary = recentLikersService.summary(recentLikers, likeCount);
@@ -407,6 +408,7 @@ public class KnowPostServiceImpl implements KnowPostService {
                     likeCount,
                     favoriteCount,
                     commentCount,
+                    viewCount,
                     null, // liked 状态暂时留空，由 enrich 填充
                     null, // faved 状态暂时留空，由 enrich 填充
                     row.getIsTop(),
@@ -493,15 +495,17 @@ public class KnowPostServiceImpl implements KnowPostService {
         Long likeCount = base.likeCount();
         Long favoriteCount = base.favoriteCount();
         Long commentCount = base.commentCount();
+        Long viewCount = base.viewCount();
 
         // 1. 刷新计数（仅在走缓存时执行）
         // 因为缓存中的计数可能是旧的，权威计数在 CounterService (Redis SDS)
         if (refreshCounts) {
-            Map<String, Long> counts = counterService.getCounts("knowpost", base.id(), List.of("like", "fav", "comment"));
+            Map<String, Long> counts = counterService.getCounts("knowpost", base.id(), List.of("like", "fav", "comment", "view"));
             if (counts != null) {
                 likeCount = counts.getOrDefault("like", likeCount == null ? 0L : likeCount);
                 favoriteCount = counts.getOrDefault("fav", favoriteCount == null ? 0L : favoriteCount);
                 commentCount = counts.getOrDefault("comment", commentCount == null ? 0L : commentCount);
+                viewCount = counts.getOrDefault("view", viewCount == null ? 0L : viewCount);
             }
         }
 
@@ -525,6 +529,7 @@ public class KnowPostServiceImpl implements KnowPostService {
                 likeCount,
                 favoriteCount,
                 commentCount,
+                viewCount,
                 liked,
                 faved,
                 base.isTop(),

@@ -22,6 +22,7 @@ public record KnowPostDetailResponse(
         Long likeCount,
         Long favoriteCount,
         Long commentCount,
+        Long viewCount,
         Boolean liked,
         Boolean faved,
         Boolean isTop,

@@ -48,4 +48,15 @@ public interface CounterService {
      * 评论计数 -1。
      */
     void decrementComment(String entityType, String entityId);
+
+    /**
+     * 记录一次浏览（PV +1）。
+     */
+    void recordView(String entityType, String entityId);
+
+    /**
+     * 批量判断用户是否对多个实体点赞（管道 GETBIT，O(n) RTT=1）。
+     * @return 与 entityIds 顺序对应的 boolean 列表
+     */
+    List<Boolean> isLikedBatch(String entityType, List<String> entityIds, long userId);
 }

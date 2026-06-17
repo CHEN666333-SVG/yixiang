@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.Map;
 
 /**
  * 计数读取接口：返回指定实体在给定指标上的汇总计数（SDS）。
@@ -44,5 +45,15 @@ public class CounterController {
         Map<String, Long> counts = counterService.getCounts(entityType, entityId, metrics);
 
         return ResponseEntity.ok(new CountsResponse(entityType, entityId, counts));
+    }
+
+    /**
+     * 记录一次浏览（PV +1）。无需登录，前端在详情页加载时调用一次。
+     */
+    @PostMapping("/{etype}/{eid}/view")
+    public ResponseEntity<Map<String, Boolean>> recordView(@PathVariable("etype") String entityType,
+                                                           @PathVariable("eid") String entityId) {
+        counterService.recordView(entityType, entityId);
+        return ResponseEntity.ok(Map.of("ok", true));
     }
 }

@@ -9,7 +9,11 @@ public interface CommentService {
 
     boolean delete(long userId, long commentId);
 
-    CommentListResponse listTopLevel(Long postId, String cursor, int size);
+    CommentListResponse listTopLevel(Long postId, String cursor, int size, Long currentUserId);
 
-    CommentListResponse listReplies(Long parentId, String cursor, int size);
+    CommentListResponse listReplies(Long parentId, String cursor, int size, Long currentUserId);
+
+    boolean likeComment(long userId, long commentId);
+
+    boolean unlikeComment(long userId, long commentId);
 }

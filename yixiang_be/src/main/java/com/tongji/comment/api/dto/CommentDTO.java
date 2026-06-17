@@ -13,5 +13,7 @@ public record CommentDTO(
         Long replyToUserId,
         String replyToNickname,
         Instant createdAt,
-        int replyCount
+        int replyCount,
+        long likeCount,
+        boolean liked
 ) {}

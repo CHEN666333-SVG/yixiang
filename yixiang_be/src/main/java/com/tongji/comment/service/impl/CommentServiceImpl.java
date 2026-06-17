@@ -64,7 +64,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         commentMapper.insert(id, request.postId(), userId, request.content(), parentId, replyToUserId);
-        counterService.incrementComment("know_post", String.valueOf(request.postId()));
+        counterService.incrementComment("knowpost", String.valueOf(request.postId()));
 
         try {
             KnowPost post = knowPostMapper.findById(request.postId());
@@ -86,7 +86,7 @@ public class CommentServiceImpl implements CommentService {
         if (rows > 0) {
             Map<String, Object> comment = commentMapper.findById(commentId);
             if (comment != null && comment.get("postId") != null) {
-                counterService.decrementComment("know_post", String.valueOf(comment.get("postId")));
+                counterService.decrementComment("knowpost", String.valueOf(comment.get("postId")));
             }
             return true;
         }
@@ -94,7 +94,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public CommentListResponse listTopLevel(Long postId, String cursor, int size) {
+    public CommentListResponse listTopLevel(Long postId, String cursor, int size, Long currentUserId) {
         Instant cursorTime = null;
         Long cursorId = null;
         if (cursor != null && !cursor.isBlank()) {
@@ -117,14 +117,27 @@ public class CommentServiceImpl implements CommentService {
         }
         Map<Long, User> userMap = resolveUsers(userIds);
 
+        List<String> commentIds = rows.stream()
+                .map(r -> String.valueOf(((Number) r.get("id")).longValue()))
+                .toList();
+        Map<String, Map<String, Long>> likeCounts = commentIds.isEmpty()
+                ? Map.of()
+                : counterService.getCountsBatch("comment", commentIds, List.of("like"));
+        List<Boolean> likedBatch = (currentUserId != null && !commentIds.isEmpty())
+                ? counterService.isLikedBatch("comment", commentIds, currentUserId)
+                : null;
+
         List<CommentDTO> items = new ArrayList<>();
         String nextCursor = null;
 
-        for (Map<String, Object> row : rows) {
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> row = rows.get(i);
             long uid = ((Number) row.get("userId")).longValue();
             User user = userMap.get(uid);
-            items.add(toDTO(row, user, null));
-
+            String cid = String.valueOf(((Number) row.get("id")).longValue());
+            long lc = likeCounts.getOrDefault(cid, Map.of()).getOrDefault("like", 0L);
+            boolean liked = likedBatch != null && likedBatch.get(i);
+            items.add(toDTO(row, user, null, lc, liked));
             nextCursor = buildCursor(row);
         }
 
@@ -132,7 +145,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public CommentListResponse listReplies(Long parentId, String cursor, int size) {
+    public CommentListResponse listReplies(Long parentId, String cursor, int size, Long currentUserId) {
         Instant cursorTime = null;
         Long cursorId = null;
         if (cursor != null && !cursor.isBlank()) {
@@ -159,10 +172,21 @@ public class CommentServiceImpl implements CommentService {
         }
         Map<Long, User> userMap = resolveUsers(userIds);
 
+        List<String> commentIds = rows.stream()
+                .map(r -> String.valueOf(((Number) r.get("id")).longValue()))
+                .toList();
+        Map<String, Map<String, Long>> likeCounts = commentIds.isEmpty()
+                ? Map.of()
+                : counterService.getCountsBatch("comment", commentIds, List.of("like"));
+        List<Boolean> likedBatch = (currentUserId != null && !commentIds.isEmpty())
+                ? counterService.isLikedBatch("comment", commentIds, currentUserId)
+                : null;
+
         List<CommentDTO> items = new ArrayList<>();
         String nextCursor = null;
 
-        for (Map<String, Object> row : rows) {
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> row = rows.get(i);
             long uid = ((Number) row.get("userId")).longValue();
             User user = userMap.get(uid);
 
@@ -175,12 +199,24 @@ public class CommentServiceImpl implements CommentService {
                 }
             }
 
-            items.add(toDTO(row, user, replyToNickname));
-
+            String cid = String.valueOf(((Number) row.get("id")).longValue());
+            long lc = likeCounts.getOrDefault(cid, Map.of()).getOrDefault("like", 0L);
+            boolean liked = likedBatch != null && likedBatch.get(i);
+            items.add(toDTO(row, user, replyToNickname, lc, liked));
             nextCursor = buildCursor(row);
         }
 
         return new CommentListResponse(items, hasMore ? nextCursor : null, hasMore);
+    }
+
+    @Override
+    public boolean likeComment(long userId, long commentId) {
+        return counterService.like("comment", String.valueOf(commentId), userId);
+    }
+
+    @Override
+    public boolean unlikeComment(long userId, long commentId) {
+        return counterService.unlike("comment", String.valueOf(commentId), userId);
     }
 
     private Map<Long, User> resolveUsers(Set<Long> userIds) {
@@ -191,7 +227,7 @@ public class CommentServiceImpl implements CommentService {
         return map;
     }
 
-    private CommentDTO toDTO(Map<String, Object> row, User user, String replyToNickname) {
+    private CommentDTO toDTO(Map<String, Object> row, User user, String replyToNickname, long likeCount, boolean liked) {
         Object replyCountObj = row.get("replyCount");
         int replyCount = replyCountObj != null ? ((Number) replyCountObj).intValue() : 0;
 
@@ -209,7 +245,9 @@ public class CommentServiceImpl implements CommentService {
                 replyToUserIdObj != null ? ((Number) replyToUserIdObj).longValue() : null,
                 replyToNickname,
                 toInstant(row.get("createdAt")),
-                replyCount
+                replyCount,
+                likeCount,
+                liked
         );
     }
 

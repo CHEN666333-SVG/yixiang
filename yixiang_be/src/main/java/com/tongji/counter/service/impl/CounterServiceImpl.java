@@ -491,6 +491,37 @@ public class CounterServiceImpl implements CounterService {
         eventPublisher.publishEvent(CounterEvent.of(entityType, entityId, "comment", CounterSchema.IDX_COMMENT, 0, -1));
     }
 
+    @Override
+    public void recordView(String entityType, String entityId) {
+        // PV 不需要去重，直接走聚合写路径，低频场景也可以直接走 Lua INCR 到 SDS
+        eventProducer.publish(CounterEvent.of(entityType, entityId, "view", CounterSchema.IDX_VIEW, 0, 1));
+        eventPublisher.publishEvent(CounterEvent.of(entityType, entityId, "view", CounterSchema.IDX_VIEW, 0, 1));
+    }
+
+    @Override
+    public List<Boolean> isLikedBatch(String entityType, List<String> entityIds, long userId) {
+        if (entityIds == null || entityIds.isEmpty()) {
+            return List.of();
+        }
+        long chunk = BitmapShard.chunkOf(userId);
+        long bit = BitmapShard.bitOf(userId);
+
+        // 管道批量 GETBIT，单次 RTT
+        List<Object> results = redis.executePipelined((RedisCallback<Object>) connection -> {
+            for (String eid : entityIds) {
+                String key = CounterKeys.bitmapKey("like", entityType, eid, chunk);
+                connection.stringCommands().getBit(key.getBytes(StandardCharsets.UTF_8), bit);
+            }
+            return null;
+        });
+
+        List<Boolean> out = new ArrayList<>(entityIds.size());
+        for (Object r : results) {
+            out.add(Boolean.TRUE.equals(r));
+        }
+        return out;
+    }
+
     // Redis 内嵌 Lua（Redis 5/6 的 Lua 5.1），位图原子切换（分片内偏移）
     private static final String TOGGLE_LUA = """
             local bmKey = KEYS[1]

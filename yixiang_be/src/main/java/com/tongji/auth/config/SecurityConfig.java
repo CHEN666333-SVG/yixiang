@@ -77,6 +77,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/profile/*").permitAll()
                         // 推荐（公开，已登录用户排除已关注/已加入）
                         .requestMatchers("/api/v1/recommend/**").permitAll()
+                        // 计数读取与浏览量记录（公开，支持匿名 PV 统计）
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/counter/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/counter/*/*/view").permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/send-code",
                                 "/api/v1/auth/register",
