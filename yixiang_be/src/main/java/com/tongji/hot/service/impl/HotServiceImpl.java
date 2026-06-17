@@ -70,11 +70,12 @@ public class HotServiceImpl implements HotService {
 
         Map<String, Map<String, Long>> countsBatch = counterService.getCountsBatch("knowpost", postIds, METRICS);
 
+        Instant now = Instant.now();
         List<KnowPost> sorted = candidates.stream()
                 .sorted((a, b) -> {
-                    long la = countsBatch.getOrDefault(String.valueOf(a.getId()), Map.of()).getOrDefault("like", 0L);
-                    long lb = countsBatch.getOrDefault(String.valueOf(b.getId()), Map.of()).getOrDefault("like", 0L);
-                    return Long.compare(lb, la);
+                    double sa = hotScore(a, countsBatch, now);
+                    double sb = hotScore(b, countsBatch, now);
+                    return Double.compare(sb, sa);
                 })
                 .toList();
 
@@ -123,6 +124,25 @@ public class HotServiceImpl implements HotService {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    /**
+     * 时间衰减热度评分（改版 Hacker News 算法）。
+     * score = (likes*3 + comments*5 + favs*2 + 1) / (ageHours + 2)^1.5
+     * - 评论权重 > 点赞权重（愿意回复 = 内容更有价值）
+     * - +1 保证零互动新帖也有基础排名，避免被埋没
+     * - 指数 1.5（比 HN 的 1.8 更平缓，让内容社区老帖不消失太快）
+     */
+    private double hotScore(KnowPost post, Map<String, Map<String, Long>> countsBatch, Instant now) {
+        Map<String, Long> c = countsBatch.getOrDefault(String.valueOf(post.getId()), Map.of());
+        long likes = c.getOrDefault("like", 0L);
+        long comments = c.getOrDefault("comment", 0L);
+        long favs = c.getOrDefault("fav", 0L);
+
+        double engagement = likes * 3 + comments * 5 + favs * 2 + 1;
+        long ageSeconds = now.getEpochSecond() - post.getCreateTime().getEpochSecond();
+        double ageHours = Math.max(ageSeconds / 3600.0, 0);
+        return engagement / Math.pow(ageHours + 2, 1.5);
     }
 
     private int decodeCursor(String cursor) {
