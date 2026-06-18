@@ -45,6 +45,7 @@ class KnowPostServiceImplDetailRecentLikersTest {
     @Mock RagIndexService ragIndexService;
     @Mock OutboxMapper outboxMapper;
     @Mock RecentLikersService recentLikersService;
+    @Mock com.tongji.stock.service.PostStockService postStockService;
 
     @Mock
     @SuppressWarnings("unchecked")
@@ -113,7 +114,8 @@ class KnowPostServiceImplDetailRecentLikersTest {
                 hotKey,
                 ragIndexService,
                 outboxMapper,
-                recentLikersService
+                recentLikersService,
+                postStockService
         );
 
         // --- Act ---

@@ -18,6 +18,8 @@ import com.tongji.counter.service.CounterService;
 import com.tongji.storage.config.OssProperties;
 import com.tongji.llm.rag.RagIndexService;
 import com.tongji.relation.outbox.OutboxMapper;
+import com.tongji.stock.service.PostStockService;
+import com.tongji.stock.dto.StockRef;
 import com.tongji.user.api.dto.UserBrief;
 import org.springframework.lang.Nullable;
 import com.tongji.cache.hotkey.HotKeyDetector;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     private final RagIndexService ragIndexService;
     private final OutboxMapper outboxMapper;
     private final RecentLikersService recentLikersService;
+    private final PostStockService postStockService;
 
     // 手动编写构造器，Spring的@Qualifier直接标注在参数上（核心）
     public KnowPostServiceImpl(
@@ -71,7 +75,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             HotKeyDetector hotKey,
             @Nullable RagIndexService ragIndexService,
             OutboxMapper outboxMapper,
-            RecentLikersService recentLikersService
+            RecentLikersService recentLikersService,
+            PostStockService postStockService
     ) {
         this.mapper = mapper;
         this.idGen = idGen;
@@ -85,6 +90,7 @@ public class KnowPostServiceImpl implements KnowPostService {
         this.ragIndexService = ragIndexService;
         this.outboxMapper = outboxMapper;
         this.recentLikersService = recentLikersService;
+        this.postStockService = postStockService;
     }
     /**
      * 创建草稿并返回新 ID。
@@ -146,7 +152,7 @@ public class KnowPostServiceImpl implements KnowPostService {
      * 更新元数据：标题、标签、可见性、置顶、图片列表等。
      */
     @Transactional
-    public void updateMetadata(long creatorId, long id, String title, Long tagId, List<String> tags, List<String> imgUrls, String visible, Boolean isTop, String description, Long circleId) {
+    public void updateMetadata(long creatorId, long id, String title, Long tagId, List<String> tags, List<String> imgUrls, String visible, Boolean isTop, String description, Long circleId, List<String> stockCodes) {
         invalidateCache(id);
 
         KnowPost post = KnowPost.builder()
@@ -168,6 +174,11 @@ public class KnowPostServiceImpl implements KnowPostService {
 
         if (updated == 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
+        }
+
+        // 同步帖子关联个股（stockCodes 为 null 时不动，空列表表示清空）
+        if (stockCodes != null) {
+            postStockService.sync(id, stockCodes);
         }
 
         // 元数据变更后写入 Outbox 事件，驱动搜索索引更新；失败必须回滚业务写入，避免索引永久不一致。
@@ -393,6 +404,7 @@ public class KnowPostServiceImpl implements KnowPostService {
 
             List<UserBrief> recentLikers = recentLikersService.top5(row.getId());
             String likerSummary = recentLikersService.summary(recentLikers, likeCount);
+            List<StockRef> stocks = toStockRefs(postStockService.listByPost(row.getId()));
 
             resp = new KnowPostDetailResponse(
                     String.valueOf(row.getId()),
@@ -416,7 +428,8 @@ public class KnowPostServiceImpl implements KnowPostService {
                     row.getType(),
                     row.getPublishTime(),
                     recentLikers,
-                    likerSummary
+                    likerSummary,
+                    stocks
             );
 
             // 9. 写入 Redis 缓存
@@ -537,7 +550,8 @@ public class KnowPostServiceImpl implements KnowPostService {
                 base.type(),
                 base.publishTime(),
                 base.recentLikers(),
-                base.likerSummary()
+                base.likerSummary(),
+                base.stocks()
         );
     }
 
@@ -600,5 +614,18 @@ public class KnowPostServiceImpl implements KnowPostService {
         } catch (Exception e) {
             return Collections.emptyList();
         }
+    }
+
+    /** 将 post_stocks 查询结果（含 code/name）转为 StockRef 列表。 */
+    private List<StockRef> toStockRefs(List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) return Collections.emptyList();
+        List<StockRef> out = new ArrayList<>(rows.size());
+        for (Map<String, Object> r : rows) {
+            Object code = r.get("code");
+            if (code == null) continue;
+            Object name = r.get("name");
+            out.add(new StockRef(String.valueOf(code), name == null ? null : String.valueOf(name)));
+        }
+        return out;
     }
 }

@@ -15,5 +15,6 @@ public record KnowPostPatchRequest(
         String visible,
         Boolean isTop,
         String description,
-        Long circleId
+        Long circleId,
+        @Size(max = 10) List<String> stockCodes
 ) {}

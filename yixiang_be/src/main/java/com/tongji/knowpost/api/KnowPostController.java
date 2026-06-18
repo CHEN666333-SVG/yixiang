@@ -58,7 +58,7 @@ public class KnowPostController {
                                               @Valid @RequestBody KnowPostPatchRequest request,
                                               @AuthenticationPrincipal Jwt jwt) {
         long userId = jwtService.extractUserId(jwt);
-        service.updateMetadata(userId, id, request.title(), request.tagId(), request.tags(), request.imgUrls(), request.visible(), request.isTop(), request.description(), request.circleId());
+        service.updateMetadata(userId, id, request.title(), request.tagId(), request.tags(), request.imgUrls(), request.visible(), request.isTop(), request.description(), request.circleId(), request.stockCodes());
         return ResponseEntity.noContent().build();
     }
 

@@ -1,5 +1,6 @@
 package com.tongji.knowpost.api.dto;
 
+import com.tongji.stock.dto.StockRef;
 import com.tongji.user.api.dto.UserBrief;
 
 import java.time.Instant;
@@ -30,5 +31,6 @@ public record KnowPostDetailResponse(
         String type,
         Instant publishTime,
         List<UserBrief> recentLikers,
-        String likerSummary
+        String likerSummary,
+        List<StockRef> stocks
 ) {}

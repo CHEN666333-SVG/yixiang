@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.stock.mapper.PostStockMapper">
+
+    <insert id="batchInsert">
+        INSERT IGNORE INTO post_stocks (id, post_id, stock_code, stock_name, create_time)
+        VALUES
+        <foreach collection="list" item="r" separator=",">
+            (#{r.id}, #{r.postId}, #{r.stockCode}, #{r.stockName}, NOW(3))
+        </foreach>
+    </insert>
+
+    <delete id="deleteByPostId">
+        DELETE FROM post_stocks WHERE post_id = #{postId}
+    </delete>
+
+    <select id="listByPostId" resultType="map">
+        SELECT stock_code AS code, stock_name AS name
+        FROM post_stocks
+        WHERE post_id = #{postId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="listPostsByStock" resultType="map">
+        SELECT post_id AS postId
+        FROM post_stocks
+        WHERE stock_code = #{stockCode}
+        ORDER BY id DESC
+        LIMIT #{size}
+    </select>
+
+    <select id="countPostsByStock" resultType="long">
+        SELECT COUNT(DISTINCT post_id) FROM post_stocks WHERE stock_code = #{stockCode}
+    </select>
+
+</mapper>
