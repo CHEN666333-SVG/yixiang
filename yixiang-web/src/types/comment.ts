@@ -10,6 +10,8 @@ export type CommentDTO = {
   replyToNickname?: string;
   createdAt: string;
   replyCount: number;
+  likeCount?: number;
+  liked?: boolean;
 };
 
 export type CommentListResponse = {

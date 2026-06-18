@@ -13,6 +13,7 @@ import { recommendService } from '@/services/recommendService';
 import { topicService } from '@/services/topicService';
 import { relationService } from '@/services/relationService';
 import { stockService } from '@/services/stockService';
+import { watchlistService } from '@/services/watchlistService';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -338,6 +339,13 @@ function HomeRightRail() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  const { data: watchlist = [], refetch: refetchWatchlist } = useQuery({
+    queryKey: ['watchlist'],
+    queryFn: () => watchlistService.list(),
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   return (
     <>
@@ -365,6 +373,41 @@ function HomeRightRail() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* My Watchlist */}
+      {isAuthenticated && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Star size={16} className="text-yellow-500" />
+            <h3 className="font-bold text-[16px] text-gray-900">我的自选股</h3>
+          </div>
+          {watchlist.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无自选股，搜索股票后可添加</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {watchlist.map((item) => {
+                const up = item.change >= 0;
+                return (
+                  <div key={item.code} className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[14px] font-medium text-gray-800">{item.name}</div>
+                      <div className="text-[11px] text-gray-400">{item.code}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-[14px] font-bold ${up ? 'text-red-500' : 'text-green-600'}`}>
+                        {item.price > 0 ? item.price.toFixed(2) : '--'}
+                      </div>
+                      <div className={`text-[12px] flex items-center gap-0.5 justify-end ${up ? 'text-red-500' : 'text-green-600'}`}>
+                        {item.price > 0 && <>{up ? <TrendingUp size={11} /> : <TrendingDown size={11} />} {up ? '+' : ''}{item.changePercent.toFixed(2)}%</>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

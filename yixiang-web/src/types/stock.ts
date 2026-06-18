@@ -6,6 +6,15 @@ export type MarketIndex = {
   changePercent: number;
 };
 
+export type KlinePoint = {
+  date: string;
+  open: number;
+  close: number;
+  high: number;
+  low: number;
+  volume: number;
+};
+
 export type StockQuote = {
   code: string;
   name: string;

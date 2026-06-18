@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
-  CheckCircle2, Star, Image as ImageIcon, ChevronDown,
+  CheckCircle2, Star, Image as ImageIcon, ChevronDown, Eye,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -39,6 +39,12 @@ export default function PostDetailPage() {
     queryFn: () => knowpostService.detail(id!, tokens?.accessToken),
     enabled: !!id,
   });
+
+  // 记录浏览量 PV：组件挂载后调一次，忽略失败
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/v1/counter/knowpost/${id}/view`, { method: 'POST' }).catch(() => {});
+  }, [id]);
 
   const { data: postContent } = useQuery({
     queryKey: ['knowpost', 'content', post?.contentUrl],
@@ -243,6 +249,9 @@ export default function PostDetailPage() {
             <button className="flex items-center gap-1.5 hover:text-gray-800">
               <MessageCircle size={20} /> {formatCount(post.commentCount)}
             </button>
+            <span className="flex items-center gap-1.5 text-gray-400 text-sm">
+              <Eye size={18} /> {formatCount(post.viewCount ?? 0)}
+            </span>
             <button className="flex items-center gap-1.5 hover:text-gray-800">
               <Share2 size={20} /> 分享
             </button>
@@ -313,7 +322,7 @@ export default function PostDetailPage() {
           ) : (
             <div className="space-y-6">
               {comments.map((comment) => (
-                <CommentRow key={comment.id} comment={comment} />
+                <CommentRow key={comment.id} comment={comment} postId={id!} />
               ))}
             </div>
           )}
@@ -323,7 +332,28 @@ export default function PostDetailPage() {
   );
 }
 
-function CommentRow({ comment }: { comment: CommentDTO }) {
+function CommentRow({ comment, postId }: { comment: CommentDTO; postId: string }) {
+  const { isAuthenticated } = useAuth();
+  const qc = useQueryClient();
+
+  const likeMut = useMutation({
+    mutationFn: () => comment.liked ? commentService.unlike(comment.id) : commentService.like(comment.id),
+    onMutate: () => {
+      qc.setQueryData(['comments', postId], (old: { items: CommentDTO[]; nextCursor: string | null; hasMore: boolean } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((c) =>
+            c.id === comment.id
+              ? { ...c, liked: !c.liked, likeCount: (c.likeCount ?? 0) + (c.liked ? -1 : 1) }
+              : c
+          ),
+        };
+      });
+    },
+    onError: () => qc.invalidateQueries({ queryKey: ['comments', postId] }),
+  });
+
   return (
     <div className="flex gap-3">
       <img src={comment.avatar || `https://i.pravatar.cc/150?u=${comment.userId}`} className="w-10 h-10 rounded-full" />
@@ -334,7 +364,16 @@ function CommentRow({ comment }: { comment: CommentDTO }) {
         </div>
         <p className="text-[15px] text-gray-800 mb-2">{comment.content}</p>
         <div className="flex items-center gap-4 text-xs text-gray-500">
-          <button className="flex items-center gap-1 hover:text-blue-600"><ThumbsUp size={14} /> 0</button>
+          <button
+            onClick={() => {
+              if (!isAuthenticated) { toast.info('请先登录'); return; }
+              likeMut.mutate();
+            }}
+            className={`flex items-center gap-1 ${comment.liked ? 'text-blue-600' : 'hover:text-blue-600'}`}
+          >
+            <ThumbsUp size={14} className={comment.liked ? 'fill-current' : ''} />
+            {comment.likeCount ? formatCount(comment.likeCount) : '赞'}
+          </button>
           <button className="flex items-center gap-1 hover:text-gray-800"><MessageCircle size={14} /> 回复</button>
         </div>
       </div>

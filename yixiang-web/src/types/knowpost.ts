@@ -91,6 +91,7 @@ export type KnowpostDetailResponse = {
   likeCount: number;
   favoriteCount: number;
   commentCount: number;
+  viewCount?: number;
   liked?: boolean;
   faved?: boolean;
   isTop: boolean;

@@ -26,4 +26,12 @@ export const commentService = {
     if (cursor) params.set("cursor", cursor);
     return apiFetch(`/api/v1/comment/replies?${params}`);
   },
+
+  like(id: number): Promise<{ changed: boolean; liked: boolean }> {
+    return apiFetch(`/api/v1/comment/${id}/like`, { method: "POST" });
+  },
+
+  unlike(id: number): Promise<{ changed: boolean; liked: boolean }> {
+    return apiFetch(`/api/v1/comment/${id}/unlike`, { method: "POST" });
+  },
 };
