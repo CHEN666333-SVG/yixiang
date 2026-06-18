@@ -29,6 +29,11 @@ build/
 .env
 .env.local
 
+# Local scripts with hardcoded credentials (never commit)
+fix_seed.py
+*_seed.py
+seed_*.py
+
 # Screenshots & design mockups (local only)
 *.jpeg
 *.jpg
