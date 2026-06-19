@@ -307,6 +307,30 @@
         LIMIT #{size}
     </select>
 
+    <select id="listByStockCode" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
+        SELECT
+            p.id,
+            p.title,
+            p.description,
+            p.tags,
+            p.img_urls AS imgUrls,
+            u.avatar AS authorAvatar,
+            u.nickname AS authorNickname,
+            u.id AS authorId,
+            u.tags_json AS authorTagJson,
+            p.publish_time AS publishTime,
+            p.is_top AS isTop
+        FROM post_stocks ps
+        JOIN know_posts p ON p.id = ps.post_id
+        JOIN users u ON p.creator_id = u.id
+        WHERE ps.stock_code = #{stockCode}
+          AND p.status = 'published'
+          AND p.visible = 'public'
+        <if test="cursor != null">AND p.id &lt; #{cursor}</if>
+        ORDER BY p.id DESC
+        LIMIT #{size}
+    </select>
+
     <update id="setFeatured">
         UPDATE know_posts SET is_featured = #{isFeatured}
         WHERE id = #{postId} AND circle_id = #{circleId}

@@ -631,6 +631,17 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     }
 
     @Override
+    public FeedPageResponse getStockPosts(String stockCode, String cursor, int size, Long viewerUserId) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        List<KnowPostFeedRow> rows = mapper.listByStockCode(stockCode, cursor, safeSize + 1);
+        boolean hasMore = rows.size() > safeSize;
+        if (hasMore) rows = rows.subList(0, safeSize);
+        String nextCursor = hasMore && !rows.isEmpty() ? String.valueOf(rows.getLast().getId()) : null;
+        List<FeedItemResponse> items = mapRowsToItems(rows, viewerUserId, false);
+        return new FeedPageResponse(items, 1, safeSize, hasMore, nextCursor);
+    }
+
+    @Override
     public FeedPageResponse getFollowingFeed(long userId, int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), 50);
         int safePage = Math.max(page, 1);

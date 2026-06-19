@@ -63,6 +63,11 @@ public interface KnowPostMapper {
                                        @Param("cursor") String cursor,
                                        @Param("size") int size);
 
+    // 按关联股票代码查帖子（个股聚合页帖子流，游标分页）
+    List<KnowPostFeedRow> listByStockCode(@Param("stockCode") String stockCode,
+                                          @Param("cursor") String cursor,
+                                          @Param("size") int size);
+
     // 设置精华标记
     int setFeatured(@Param("postId") long postId,
                     @Param("circleId") long circleId,
