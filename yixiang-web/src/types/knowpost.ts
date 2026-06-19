@@ -42,6 +42,13 @@ export type UpdateKnowPostRequest = {
   isTop?: boolean;
   description?: string;
   circleId?: number | null;
+  stockCodes?: string[];
+};
+
+// 帖子关联的股票引用
+export type StockRef = {
+  code: string;
+  name?: string;
 };
 
 // Feed 列表数据结构
@@ -100,6 +107,7 @@ export type KnowpostDetailResponse = {
   publishTime?: string;
   recentLikers?: UserBrief[];
   likerSummary?: string;
+  stocks?: StockRef[];
 };
 
 // 点赞/取消点赞 响应

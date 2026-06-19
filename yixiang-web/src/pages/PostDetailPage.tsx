@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
-  CheckCircle2, Star, Image as ImageIcon, ChevronDown, Eye,
+  CheckCircle2, Star, Image as ImageIcon, ChevronDown, Eye, TrendingUp,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -211,10 +211,25 @@ export default function PostDetailPage() {
 
           {/* Tags */}
           {post.tags?.length > 0 && (
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-3">
               {post.tags.map((tag) => (
                 <span key={tag} className="text-blue-600 bg-blue-50 text-xs px-2 py-1 rounded cursor-pointer">
                   {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 关联个股 */}
+          {post.stocks && post.stocks.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {post.stocks.map((s) => (
+                <span
+                  key={s.code}
+                  onClick={() => navigate(`/stock/${s.code}`)}
+                  className="flex items-center gap-1 text-orange-600 bg-orange-50 hover:bg-orange-100 text-xs px-2.5 py-1 rounded-md cursor-pointer transition-colors"
+                >
+                  <TrendingUp size={12} /> {s.name ?? s.code}
                 </span>
               ))}
             </div>

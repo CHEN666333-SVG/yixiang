@@ -12,6 +12,7 @@ import SearchPage from '@/pages/SearchPage';
 import CircleSquarePage from '@/pages/CircleSquarePage';
 import CircleDetailPage from '@/pages/CircleDetailPage';
 import PostDetailPage from '@/pages/PostDetailPage';
+import StockDetailPage from '@/pages/StockDetailPage';
 import CreatePage from '@/pages/CreatePage';
 import DraftsPage from '@/pages/DraftsPage';
 import SettingsPage from '@/pages/SettingsPage';
@@ -30,6 +31,7 @@ export function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/hot" element={<HomePage />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
+        <Route path="/stock/:code" element={<StockDetailPage />} />
         <Route path="/circles" element={<CircleSquarePage />} />
         <Route path="/circles/:id" element={<CircleDetailPage />} />
         <Route path="/users/:id" element={<ProfilePage />} />

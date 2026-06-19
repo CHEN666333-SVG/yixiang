@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Star, MoreHorizontal, ThumbsUp, MessageCircle, Share, CheckCircle2,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Flame,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -346,6 +346,12 @@ function HomeRightRail() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  const { data: hotStocks = [] } = useQuery({
+    queryKey: ['stock', 'hot'],
+    queryFn: () => stockService.hot(8),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
   return (
     <>
@@ -368,6 +374,39 @@ function HomeRightRail() {
                       {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                       {up ? '+' : ''}{idx.changePercent.toFixed(2)}%
                     </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Hot stocks */}
+      {hotStocks.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Flame size={16} className="text-orange-500" />
+            <h3 className="font-bold text-[16px] text-gray-900">今日热议个股</h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            {hotStocks.map((s, i) => {
+              const up = s.changePercent >= 0;
+              return (
+                <div
+                  key={s.code}
+                  onClick={() => navigate(`/stock/${s.code}`)}
+                  className="flex items-center justify-between cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`text-xs font-bold w-4 text-center ${i < 3 ? 'text-orange-500' : 'text-gray-300'}`}>{i + 1}</span>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-medium text-gray-800 truncate">{s.name}</div>
+                      <div className="text-[11px] text-gray-400">{formatCount(s.mentionCount)} 次讨论</div>
+                    </div>
+                  </div>
+                  <div className={`text-[13px] font-bold shrink-0 ${up ? 'text-red-500' : 'text-green-600'}`}>
+                    {s.price > 0 ? `${up ? '+' : ''}${s.changePercent.toFixed(2)}%` : '--'}
                   </div>
                 </div>
               );

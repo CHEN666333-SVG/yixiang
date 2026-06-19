@@ -5,7 +5,7 @@ import {
   ArrowLeft, ChevronDown, Bold, Italic, Underline, List, TextQuote, Code,
   Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus, X,
   ShieldCheck, AlertCircle, Ban, MessageSquare, ThumbsUp,
-  Lightbulb, CheckCircle2, FileEdit, Users,
+  Lightbulb, CheckCircle2, FileEdit, Users, TrendingUp,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +14,9 @@ import { toast } from 'sonner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { draftService, uploadDraftMarkdownContent, type DraftItem } from '@/services/draftService';
 import { knowpostService, uploadToPresigned } from '@/services/knowpostService';
+import { stockService } from '@/services/stockService';
 import { circleService } from '@/services/circleService';
+import type { StockRef } from '@/types/knowpost';
 import { formatRelativeTime } from '@/lib/formatters';
 
 export default function CreatePage() {
@@ -30,6 +32,9 @@ export default function CreatePage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [stocks, setStocks] = useState<StockRef[]>([]);
+  const [stockInput, setStockInput] = useState('');
+  const [stockAdding, setStockAdding] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [selectedCircleId, setSelectedCircleId] = useState<number | null>(null);
@@ -120,6 +125,14 @@ export default function CreatePage() {
       if (normalizedContent.length < 20) throw new Error('正文至少 20 个字');
       const draft = await saveCurrentDraft();
       const resp = await draftService.publish(draft.id);
+      // 发布后同步关联个股（草稿无此字段，发布时一并提交）
+      if (stocks.length > 0) {
+        try {
+          await knowpostService.update(String(resp.postId), { stockCodes: stocks.map((s) => s.code) });
+        } catch {
+          toast.error('关联股票保存失败，可稍后在帖子编辑');
+        }
+      }
       return resp.postId;
     },
     onSuccess: (postId) => {
@@ -168,6 +181,26 @@ export default function CreatePage() {
   };
 
   const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
+
+  const addStock = async () => {
+    const code = stockInput.trim().toLowerCase();
+    if (!code) return;
+    if (stocks.length >= 10) { toast.info('最多关联 10 只股票'); return; }
+    if (stocks.some((s) => s.code === code)) { setStockInput(''); return; }
+    setStockAdding(true);
+    try {
+      const q = await stockService.quote(code);
+      if (!q || !q.name) { toast.error('未找到该股票，请检查代码（如 sh600000）'); return; }
+      setStocks([...stocks, { code: q.code, name: q.name }]);
+      setStockInput('');
+    } catch {
+      toast.error('未找到该股票，请检查代码（如 sh600000）');
+    } finally {
+      setStockAdding(false);
+    }
+  };
+
+  const removeStock = (code: string) => setStocks(stocks.filter((s) => s.code !== code));
 
   if (!isAuthenticated) {
     return (
@@ -335,6 +368,33 @@ export default function CreatePage() {
               {tags.map((tag) => (
                 <span key={tag} className="bg-[#f0f5ff] text-blue-600 text-sm px-3 py-1 rounded-full flex items-center gap-1 cursor-pointer" onClick={() => removeTag(tag)}>
                   #{tag} ×
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* 关联个股 */}
+          <section>
+            <h3 className="font-bold text-[15px] text-gray-900 mb-4">关联个股</h3>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="relative w-[280px]">
+                <TrendingUp size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500" />
+                <input
+                  type="text"
+                  value={stockInput}
+                  onChange={(e) => setStockInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStock(); } }}
+                  placeholder="输入股票代码，如 sh600000"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-orange-400"
+                />
+              </div>
+              <Button type="button" variant="outline" size="sm" disabled={stockAdding} onClick={addStock}>
+                {stockAdding ? '校验中…' : '添加'}
+              </Button>
+              <span className="text-sm text-gray-400">最多 10 只，回车确认</span>
+              {stocks.map((s) => (
+                <span key={s.code} className="bg-orange-50 text-orange-600 text-sm px-3 py-1 rounded-full flex items-center gap-1 cursor-pointer" onClick={() => removeStock(s.code)}>
+                  {s.name} ×
                 </span>
               ))}
             </div>
